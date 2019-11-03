@@ -6,6 +6,8 @@
  * When this callback is fired, it will toggle line 2 of the LCD text between
  * "I was pressed!" and nothing.
  */
+using namespace pros;
+
 void on_center_button() {
 	static bool pressed = false;
 	pressed = !pressed;
@@ -73,7 +75,6 @@ void autonomous() {}
  * operator control task will be stopped. Re-enabling the robot will restart the
  * task, not resume it from where it left off.
  */
-
 void opcontrol() {
 	pros::Controller master(pros::E_CONTROLLER_MASTER);
 	pros::Motor left_mtr(1);
