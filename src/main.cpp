@@ -12,14 +12,15 @@ struct controllerState {
 	bool grabblerFresh;
 } controls;
 
-	Controller master (E_CONTROLLER_MASTER);
-	Motor frontLeftMotor(1);
-	Motor frontRightMotor(2);
-	Motor leftGrabblerMotor(4);
-	Motor rightGrabblerMotor(5);
-	Motor retractGrabblerMotor(6);
-	Motor backLeftMotor(7);
-	Motor backRightMotor(8);
+Controller master (E_CONTROLLER_MASTER);
+
+Motor frontLeftMotor(11);
+Motor frontRightMotor(17);
+Motor backLeftMotor(19);
+Motor backRightMotor(18);
+Motor leftGrabblerMotor(14);
+Motor rightGrabblerMotor(16);
+Motor retractRamp(15);
 
 controllerState getControllerState (){
 	controls.left = master.get_analog(ANALOG_LEFT_Y); //y val of left stick
@@ -33,9 +34,10 @@ controllerState getControllerState (){
 	return controls;
 }
 
-void grabblerSucc (int grabblerRotation){ /// one of these might have to be negative, depending on how Ethan oriented le motors
+// spins grabblers, positive direction --> sucks up
+void grabblerSucc (int grabblerRotation){
 	leftGrabblerMotor.move(grabblerRotation);
-	rightGrabblerMotor.move(grabblerRotation);
+	rightGrabblerMotor.move(-1 * grabblerRotation);
 }
 
 /**
@@ -64,16 +66,6 @@ void initialize() {
 	pros::lcd::initialize();
 	pros::lcd::set_text(1, "4393Z RISE UP");
 	pros::lcd::register_btn1_cb(on_center_button);
-
-	Controller master (E_CONTROLLER_MASTER);
-	Motor frontLeftMotor(1);
-	Motor frontRightMotor(2);
-	Motor leftGrabblerMotor(4);
-	Motor rightGrabblerMotor(5);
-	Motor retractGrabblerMotor(6);
-	Motor backLeftMotor(7);
-	Motor backRightMotor(8); /// these should probably go in initialize()
-	
 }
 
 /**
@@ -124,7 +116,6 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-
 	const int grabblerConstant = 70; /// test & adjust these
 	const double grabblerRetractionDecayRate = 2;
 	const int grabblerInitial = 100;
@@ -139,8 +130,8 @@ void opcontrol() {
 		frontLeftMotor.move(controls.left);
 		backLeftMotor.move(controls.left);
 
-		frontRightMotor.move(controls.right);
-		backRightMotor.move(controls.right);
+		frontRightMotor.move(-1 * controls.right); // for right motors, positive motor spin sends bot back
+		backRightMotor.move(-1 * controls.right);
 
 		if (controls.rightBumper1){
 			grabblerSucc (grabblerConstant); // succ in le blocks
@@ -155,10 +146,10 @@ void opcontrol() {
 		} else {
 			grabblerState *= grabblerDecayCoef;
 			if (controls.rightBumper2){ // move tower out on R2 
-				retractGrabblerMotor.move(grabblerState); /// sign may need adjusting
+				retractRamp.move(-1 * grabblerState); /// sign may need adjusting
 			}
 			else { // move tower in on L2
-				retractGrabblerMotor.move(-1 * grabblerState); /// sign may need adjusting
+				retractRamp.move(grabblerState); /// sign may need adjusting
 			}
 		}
 
