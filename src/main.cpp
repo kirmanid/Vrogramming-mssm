@@ -116,13 +116,10 @@ void autonomous() {}
  * task, not resume it from where it left off.
  */
 void opcontrol() {
-	const int grabblerConstant = 70; /// test & adjust these
-	const double grabblerRetractionDecayRate = 2;
-	const int grabblerInitial = 100;
+	/// test & adjust these
+	const int grabblerSpeed = 100; // out of 127
 	const int tickLength = 5; // in ms
-
-	int grabblerState = 0;
-	double grabblerDecayCoef = 0.95;
+	const int grabblerRamp = 40; // out of 127
 
 	while (true) {
 		controls = getControllerState();
@@ -133,24 +130,23 @@ void opcontrol() {
 		frontRightMotor.move(-1 * controls.right); // for right motors, positive motor spin sends bot back
 		backRightMotor.move(-1 * controls.right);
 
-		if (controls.rightBumper1){
-			grabblerSucc (grabblerConstant); // succ in le blocks
-		} else if (controls.leftBumper1){
-			grabblerSucc (-1 * grabblerConstant); // succ out le blocks
+		if (controls.leftBumper1){
+			grabblerSucc (grabblerSpeed); // succ in le blocks
+		} else if (controls.leftBumper2){
+			grabblerSucc (-1 * grabblerSpeed); // succ out le blocks
 		}	else {
 			grabblerSucc (0); // stop grabbler movement
 		}
 
-		if (!controls.rightBumper2 && !controls.leftBumper2){ // if neither L2 nor R2 are pressed, reset grabblerState but don't move motors
-			grabblerState = grabblerInitial;
+		//move le ramp (chimp)
+		if (controls.rightBumper1 || controls.rightBumper2){
+			if (controls.rightBumper2){ // move tower out
+				retractRamp.move(-1 * grabblerState);
+			} else { // move tower in
+				retractRamp.move(grabblerState);
+			}
 		} else {
-			grabblerState *= grabblerDecayCoef;
-			if (controls.rightBumper2){ // move tower out on R2 
-				retractRamp.move(-1 * grabblerState); /// sign may need adjusting
-			}
-			else { // move tower in on L2
-				retractRamp.move(grabblerState); /// sign may need adjusting
-			}
+			retractRamp.move(0);
 		}
 
 		delay(tickLength);
