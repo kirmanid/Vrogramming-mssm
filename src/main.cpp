@@ -141,9 +141,9 @@ void opcontrol() {
 		//move le ramp (chimp)
 		if (controls.rightBumper1 || controls.rightBumper2){
 			if (controls.rightBumper2){ // move tower out
-				retractRamp.move(-1 * grabblerState);
+				retractRamp.move(-1 * grabblerSpeed);
 			} else { // move tower in
-				retractRamp.move(grabblerState);
+				retractRamp.move(grabblerSpeed);
 			}
 		} else {
 			retractRamp.move(0);
