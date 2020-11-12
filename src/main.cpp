@@ -20,14 +20,17 @@ struct controllerState {
 
 Controller master (E_CONTROLLER_MASTER);
 
-Motor frontLeftMotor(19);  //rotations = distance/circumference -- circumference = 12.5663706144 inches (maybe use 4.15 if this doesn't work)
-Motor frontRightMotor(17);
-Motor backLeftMotor(11);
-Motor backRightMotor(18);
-Motor leftGrabblerMotor(14);
-Motor rightGrabblerMotor(7);
-Motor retractRamp(15);
-Motor arm(9);
+//rotations = distance/circumference -- circumference = 12.5663706144 inches (maybe use 4.15 if this doesn't work)
+Motor top(12);
+Motor left(20);
+Motor bottom(4);
+Motor right(13);
+
+Motor rDrivetrain1(11);
+Motor rDrivetrain2(1);
+Motor lDrivetrain1(7);
+MOtor lDrivetrain2(15);
+
 
 controllerState getControllerState (){
 	controls.left = master.get_analog(ANALOG_LEFT_Y); //y val of left stick
@@ -47,9 +50,19 @@ controllerState getControllerState (){
 	return controls;
 }
 
-void grabblerSucc (int grabblerRotation){ // spins grabblers, negative direction --> sucks out
-	leftGrabblerMotor.move(grabblerRotation);
-	rightGrabblerMotor.move(-1*grabblerRotation);
+void intake (int force){ // negative force is outtake
+    left.move(force);
+    right.move(-1*force);
+    b.move(-1*force);
+}
+
+void spinTopRoller (int force){ // negative force is backward spin, positive is forward
+    top.move(force);
+}
+
+void score (int force){ // negative force is backward spin, positive is forward
+    top.move(force);
+    bottom.move(-1*force);
 }
 
 /**
@@ -76,7 +89,7 @@ void on_center_button() {
  */
 void initialize() {
 	pros::lcd::initialize();
-	pros::lcd::set_text(1, "4393Z RISE UP");
+	pros::lcd::set_text(1, "4393G RISE UP");
 	pros::lcd::register_btn1_cb(on_center_button);
 //----------------------------------------------------------------------------------------------------------------------experimentalish
 	frontLeftMotor.set_brake_mode(E_MOTOR_BRAKE_COAST);//set_brake_mode(E_MOTOR_BRAKE_COAST); -- for drive motors
@@ -112,10 +125,10 @@ void competition_initialize() {
 }
 
 void setDriveVoltage(int voltL, int voltR){
-	frontLeftMotor=voltL;
-	frontRightMotor=-voltR;
-	backRightMotor=-voltR;
-	backLeftMotor=voltL;
+    lDrivetrain1=-1*voltL;
+    lDrivetrain2=-1*voltL;
+    rDrivetrain1=voltR;
+    rDrivetrain2=voltR;
 }
 
 void ResetDrive(){
@@ -129,19 +142,19 @@ double avgDriveEncoderVal(){
 	return (fabs(frontLeftMotor.get_position()) + fabs(frontRightMotor.get_position()) + fabs(backLeftMotor.get_position()) + fabs(backRightMotor.get_position()))/4;
 }
 
-void translate (int units, int voltage, bool intake, bool outake){ //units is very small, 500 goes almost nowhere. Use negatives for backward, true if you want it to intake while it drives
+void translate (int units, int voltage, bool doingIntake, bool outtake){ //units is very small, 500 goes almost nowhere. Use negatives for backward, true if you want it to intake while it drives
 	int direction = abs(units)/units;
 
 	ResetDrive();
 
-	while(avgDriveEncoderVal()<abs(units)){
+	while(avgDriveEncoderVal() < abs(units)){
 		setDriveVoltage(voltage*direction,voltage*direction);
 
-		if (intake){ // might have to use/reset encoder vals if this doesn't work
-			grabblerSucc(voltage);
+		if (doingIntake){ // might have to use/reset encoder vals if this doesn't work
+			intake(voltage);
 		}
-		if (outake){
-			grabblerSucc(-voltage); // might have to reduce speed here
+		if (doingOuttake){
+			intake(-voltage); // might have to reduce speed here
 		}
 
 		delay(10);
@@ -149,11 +162,8 @@ void translate (int units, int voltage, bool intake, bool outake){ //units is ve
 
 	setDriveVoltage(-10*direction,-10*direction); //brief brake
 
-	if (intake){ // brake intake as well if it is set to true
-		grabblerSucc(0);
-	}
-	if (outake){
-		grabblerSucc(0);
+	if (doingIntake || doingOuttake){ // brake intake as well if it is set to true
+		intake(0);
 	}
 
 	delay(75);
@@ -162,61 +172,56 @@ void translate (int units, int voltage, bool intake, bool outake){ //units is ve
 }
 
 void stopwheels(){
-	frontLeftMotor.move(0);
-	frontRightMotor.move(0);
-	backRightMotor.move(0);
-	backLeftMotor.move(0);
+    lDrivetrain1.move(0);
+    lDrivetrain2.move(0);
+    rDrivetrain1.move(0);
+    rDrivetrain2.move(0);
 }
 
 void turnRightNoGyro(int voltage, int time){
-		frontLeftMotor.move(voltage);
-		frontRightMotor.move(voltage);
-		backRightMotor.move(voltage);
-		backLeftMotor.move(voltage);
-		delay (time);
-		stopwheels();
+    lDrivetrain1.move(voltage);
+    lDrivetrain2.move(voltage);
+    rDrivetrain1.move(-1*voltage);
+    rDrivetrain2.move(-1*voltage);
+    delay (time);
+    stopwheels();
 }
 
 void turnLeftNoGyro(int voltage, int time){
-		frontLeftMotor.move(voltage);
-		frontRightMotor.move(voltage);
-		backRightMotor.move(voltage);
-		backLeftMotor.move(voltage);
-		delay (time);
-		stopwheels();
+    lDrivetrain1.move(-1*voltage);
+    lDrivetrain2.move(-1*voltage);
+    rDrivetrain1.move(voltage);
+    rDrivetrain2.move(voltage);
+    delay (time);
+    stopwheels();
 }
 
-void raiseRamp(int volt, int time){ //positive = raise up, negative = retract
-	retractRamp.move(-volt);
+void intakeFor(int volt, int time){ //positive for intake, negative for outake
+	intake(volt);
 	delay(time);
-	retractRamp.move(0);
-}
-
-void intakeOutake(int volt, int time){ //positive for intake, negative for outake
-	grabblerSucc(volt);
-	delay(time);
-	grabblerSucc(0);
+	intake(0);
 }
 
 void blueRightCorner(){
-	translate(1500, 100, true, false);
-	//delay(500);
-	intakeOutake(75,500);
-	delay(500);
-	turnRightNoGyro(100,350); //maybe reduce turning speed, increase time //TEST THIS TURN
-	delay(500);
-	translate(1500, 100, true, false);
-	delay(500);
-	turnRightNoGyro(100, 200);
-	delay(500);
-	translate(500,100,false, false);
-//  intakeOutake(-75,700);
-	delay(300);
-  raiseRamp(75,1500);
-	delay(300);
-  translate(-1000,50, false, true);
-
-
+    //void translate (int units, int voltage, bool doingIntake, bool doingOuttake){ //units is very small, 500 goes almost nowhere. Use negatives for backward, true if you want it to intake while it drives
+    // chimp auto:
+    top.move(127);
+    delay(750);
+    top.move(0);
+     
+    translate(2500, 50, true, false); // tweak units
+    
+    // outtake l and r 
+    left.move(127);
+    right.move(-127);
+    
+    translate(2500, 50, false, false); // tweak units
+    left.move(0);
+    right.move(0);
+    score(127);
+    delay(2000);
+    top.move(0);
+    bottom.move(0);
 }
 
 /**
@@ -249,86 +254,44 @@ void autonomous() {
  */
 void opcontrol() {
 	/// test & adjust these
-	const int grabblerSpeed = 127; // out of 127
+	const int intakeSpeed = 127; // out of 127
 	const int tickLength = 5; // in ms
-	const int grabblerRamp = 100; // out of 127
 
 	while (true) {
 		controls = getControllerState();
-////////////////////////////////////////////////////////////driving////////////////////////////////////////////////////////////
 		frontLeftMotor.move(controls.left);
 		backLeftMotor.move(controls.left);
-		frontRightMotor.move(-1*controls.right); // for right motors, negative motor spin needs to be used to go forward w/ left positive motors
-		backRightMotor.move(-1*controls.right);
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////__amd64
+		frontRightMotor.move(controls.right); // for right motors, negative motor spin needs to be used to go forward w/ left positive motors
+		backRightMotor.move(controls.right);
+        
+        lDrivetrain1.move(-1*controls.left);
+        lDrivetrain2.move(-1*controls.left);
+        rDrivetrain2.move(controls.right);
+        rDrivetrain2.move(contols.right);
 
 		if (controls.a){ // for testing auto, comment out for competition
 			delay(500);
 			autonomous();
 		  delay(500);
 		}
-
-//////////////////////////////////////////////////intake and outtake///////////////////////////////////////////////////////
-		if (controls.leftBumper1){
-			grabblerSucc (-1*grabblerSpeed); // succ out le blocks
-		}
-	else	if (controls.leftBumper2){
-			grabblerSucc (grabblerSpeed); // succ in le blocks
-		}
-			else {
-			grabblerSucc (0); // stop grabbler movement
-		}
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-///////////////////////////////////////////////////move le ramp (chimp)/////////////////////////////////////////////////////
-		// if (controls.rightBumper1 || controls.rightBumper2||controls.b){
-		// 	if (controls.rightBumper2){ // move tower out
-		// 		retractRamp.move(-1*grabblerRamp);  //maybe swap the retract ramp stuff if it is backwards
-		// 	}
-		// 	else if(controls.b){
-		// 		retractRamp.move(-1*grabblerRamp/2);
-		// 	}
-		// 	 else { // move tower in
-		// 		retractRamp.move(grabblerRamp);
-		// 	}
-		// } else {
-		// 	retractRamp.move(0);
-		// }
-
-		if (controls.rightBumper2){ // move tower out
-			retractRamp.move(-1*grabblerRamp);
-		}
-		else if(controls.b){
-			retractRamp.move(-1*grabblerRamp/2); //slow move out
-		}
-		else if(controls.rightBumper1){ // move tower in
-			retractRamp.move(grabblerRamp);
-		}
-	  else {
-		  retractRamp.move(0);
-	}
-///////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
-
-///////////////////////////////////////////////////////////////moving arm//////////////////////////////////////////////////////////
-		if (controls.y){ //move arm up
-			arm.move(100);
-		}
-		else if (controls.rarrow){ // move arm down
-			arm.move(-1*100);
-		}
-		else if (controls.uarrow){ //arm up slower
-			arm.move(50);
-		}
-		else if (controls.darrow){ //arm down slower
-			arm.move(-1*50);
-		}
-		else {
-			arm.move(0);
-		}
-////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////////
-
+        
+        
+        if (controls.rightBumper1 || contols.rightBumper2){
+            top.move(contols.rightBumper1? intakeSpeed : -1*intakeSpeed);
+        } else  if(){
+            top.move(intakeSpeed);
+            bottom.move(-1*intakeSpeed);
+        } else {
+            top.move(0);
+            bottom.move(0);
+        }
+        
+        if (controls.leftBumper1 || controls.leftBumper2){
+            intake(controls.leftBumper1? intakeSpeed : -1 * intakeSpeed);
+        } else {
+            intake(0);
+        }
+        
 		delay(tickLength);
 	}
 }
