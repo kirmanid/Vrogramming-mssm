@@ -151,10 +151,10 @@ void translate (int units, int voltage, bool doingIntake, bool outtake){ //units
 		setDriveVoltage(voltage*direction,voltage*direction);
 
 		if (doingIntake){ // might have to use/reset encoder vals if this doesn't work
-			intake(voltage);
+			intake(127);
 		}
 		if (doingOuttake){
-			intake(-voltage); // might have to reduce speed here
+			intake(-127); // might have to reduce speed here
 		}
 
 		delay(10);
@@ -212,10 +212,10 @@ void blueRightCorner(){
     translate(2500, 50, true, false); // tweak units
     
     // outtake l and r 
-    left.move(127);
-    right.move(-127);
+    left.move(-127);
+    right.move(127);
     
-    translate(2500, 50, false, false); // tweak units
+    translate(3750, 50, false, false); // tweak units
     left.move(0);
     right.move(0);
     score(127);
@@ -259,10 +259,6 @@ void opcontrol() {
 
 	while (true) {
 		controls = getControllerState();
-		frontLeftMotor.move(controls.left);
-		backLeftMotor.move(controls.left);
-		frontRightMotor.move(controls.right); // for right motors, negative motor spin needs to be used to go forward w/ left positive motors
-		backRightMotor.move(controls.right);
         
         lDrivetrain1.move(-1*controls.left);
         lDrivetrain2.move(-1*controls.left);
